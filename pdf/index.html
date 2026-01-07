@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF to Base64 · Scholar</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Lato:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    :root {
+      --accent-primary: #2d5a47;
+      --accent-hover: #3d7a5f;
+      --accent-secondary: #8b6914;
+      --bg-main: #faf9f7;
+      --bg-card: #f5f2eb;
+      --bg-input: #fffefa;
+      --border-color: #d4cfc4;
+      --text-primary: #3d3831;
+      --text-secondary: #6b6560;
+      --text-muted: #9a948c;
+      --color-success: #2d5a47;
+      --color-error: #a63d3d;
+      --shadow-sm: 0 1px 3px rgba(61, 56, 49, 0.08);
+      --shadow-md: 0 4px 12px rgba(61, 56, 49, 0.1);
+      --font-display: 'Playfair Display', serif;
+      --font-body: 'Lato', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    header h1 {
+      font-family: var(--font-display);
+      font-size: 2.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      color: var(--text-secondary);
+      font-size: 1.05rem;
+      font-weight: 300;
+    }
+
+    /* Upload Zone */
+    .upload-zone {
+      background: var(--bg-card);
+      border: 2px dashed var(--border-color);
+      border-radius: 12px;
+      padding: 60px 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .upload-zone::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent 0%, rgba(45, 90, 71, 0.02) 100%);
+      pointer-events: none;
+    }
+
+    .upload-zone:hover {
+      border-color: var(--accent-primary);
+      background: var(--bg-input);
+      box-shadow: var(--shadow-md);
+    }
+
+    .upload-zone.dragover {
+      border-color: var(--accent-primary);
+      background: rgba(45, 90, 71, 0.05);
+      transform: scale(1.01);
+    }
+
+    .upload-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      opacity: 0.6;
+    }
+
+    .upload-zone h3 {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .upload-zone p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    #file-input {
+      display: none;
+    }
+
+    /* Processing Status */
+    .status-bar {
+      display: none;
+      background: var(--bg-card);
+      border-radius: 8px;
+      padding: 16px 24px;
+      margin-top: 24px;
+      box-shadow: var(--shadow-sm);
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-bar.visible {
+      display: flex;
+    }
+
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--accent-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .status-text {
+      flex: 1;
+      color: var(--text-secondary);
+    }
+
+    /* Pages Grid */
+    .pages-section {
+      display: none;
+      margin-top: 40px;
+    }
+
+    .pages-section.visible {
+      display: block;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .section-header h2 {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      color: var(--text-primary);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      font-weight: 500;
+      padding: 10px 20px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--accent-primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-secondary {
+      background: var(--bg-input);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-card);
+      border-color: var(--accent-primary);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Stats Bar */
+    .stats-bar {
+      display: flex;
+      gap: 32px;
+      padding: 16px 24px;
+      background: var(--bg-card);
+      border-radius: 8px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+      flex-wrap: wrap;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-value {
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .stat-value.highlight {
+      color: var(--accent-primary);
+    }
+
+    /* Pages Grid */
+    .pages-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 20px;
+    }
+
+    .page-card {
+      background: var(--bg-card);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .page-card:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+
+    .page-card.selected {
+      box-shadow: 0 0 0 3px var(--accent-primary), var(--shadow-md);
+    }
+
+    .page-thumb {
+      width: 100%;
+      aspect-ratio: 210 / 297;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .page-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .page-info {
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .page-checkbox {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--accent-primary);
+      cursor: pointer;
+    }
+
+    .page-label {
+      flex: 1;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .page-tokens {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Output Section */
+    .output-section {
+      display: none;
+      margin-top: 40px;
+    }
+
+    .output-section.visible {
+      display: block;
+    }
+
+    .output-card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .output-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .output-header h3 {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+    }
+
+    .output-tabs {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tab-btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      border: 1px solid var(--border-color);
+      background: var(--bg-input);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn.active {
+      background: var(--accent-primary);
+      color: white;
+      border-color: var(--accent-primary);
+    }
+
+    .output-content {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 16px;
+      max-height: 400px;
+      overflow: auto;
+      box-shadow: inset 0 1px 3px rgba(61, 56, 49, 0.05);
+    }
+
+    .output-content pre {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .copy-success {
+      display: none;
+      color: var(--color-success);
+      font-size: 0.9rem;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .copy-success.visible {
+      display: flex;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--text-primary);
+      color: white;
+      padding: 14px 24px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      box-shadow: var(--shadow-md);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+
+    .toast.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      padding: 24px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    footer a {
+      color: var(--accent-primary);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      header h1 {
+        font-size: 1.8rem;
+      }
+      
+      .upload-zone {
+        padding: 40px 24px;
+      }
+      
+      .pages-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      }
+      
+      .stats-bar {
+        gap: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📜 PDF to Base64</h1>
+      <p>将 PDF 页面转换为图片，生成 Claude API 兼容格式</p>
+    </header>
+
+    <!-- Upload Zone -->
+    <div class="upload-zone" id="upload-zone">
+      <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M9 12h6m-3-3v6m-7 4h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+      </svg>
+      <h3>拖拽 PDF 文件到这里</h3>
+      <p>或点击选择文件 · 支持标准 PDF 格式</p>
+      <input type="file" id="file-input" accept=".pdf,application/pdf">
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar" id="status-bar">
+      <div class="spinner"></div>
+      <span class="status-text" id="status-text">正在处理...</span>
+    </div>
+
+    <!-- Pages Section -->
+    <section class="pages-section" id="pages-section">
+      <div class="section-header">
+        <h2>📄 选择页面</h2>
+        <div class="header-actions">
+          <button class="btn btn-secondary" id="btn-select-all">全选</button>
+          <button class="btn btn-secondary" id="btn-deselect-all">全不选</button>
+          <button class="btn btn-primary" id="btn-convert">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+            转换选中页面
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-bar">
+        <div class="stat-item">
+          <span class="stat-label">文件名</span>
+          <span class="stat-value" id="stat-filename">-</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">总页数</span>
+          <span class="stat-value" id="stat-total">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">已选页数</span>
+          <span class="stat-value highlight" id="stat-selected">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">预估 Tokens</span>
+          <span class="stat-value highlight" id="stat-tokens">0</span>
+        </div>
+      </div>
+
+      <!-- Pages Grid -->
+      <div class="pages-grid" id="pages-grid"></div>
+    </section>
+
+    <!-- Output Section -->
+    <section class="output-section" id="output-section">
+      <div class="output-card">
+        <div class="output-header">
+          <h3>📋 输出结果</h3>
+          <div class="output-tabs">
+            <button class="tab-btn active" data-format="json">JSON (API)</button>
+            <button class="tab-btn" data-format="base64">纯 Base64</button>
+          </div>
+        </div>
+        <div class="output-content">
+          <pre id="output-text"></pre>
+        </div>
+        <div style="display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; align-items: center;">
+          <button class="btn btn-primary" id="btn-copy">复制到剪贴板</button>
+          <button class="btn btn-secondary" id="btn-download">下载为 PNG</button>
+          <span class="copy-success" id="copy-success">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+            已复制！
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <p>长边自动缩放至 ≤ 1568px · Token 估算公式: (width × height) / 750</p>
+      <p style="margin-top: 8px;">为 <a href="https://docs.anthropic.com/en/docs/build-with-claude/pdf-support" target="_blank">Claude API</a> 优化</p>
+    </footer>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    // State
+    const state = {
+      pdfDoc: null,
+      pages: [],
+      selectedPages: new Set(),
+      convertedImages: [],
+      currentFormat: 'json',
+      filename: ''
+    };
+
+    // DOM Elements
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+    const statusBar = document.getElementById('status-bar');
+    const statusText = document.getElementById('status-text');
+    const pagesSection = document.getElementById('pages-section');
+    const pagesGrid = document.getElementById('pages-grid');
+    const outputSection = document.getElementById('output-section');
+    const outputText = document.getElementById('output-text');
+    const toast = document.getElementById('toast');
+
+    // Constants
+    const MAX_DIMENSION = 1568;
+    const TOKENS_PER_PIXEL = 750;
+
+    // Upload handlers
+    uploadZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+    uploadZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+      uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type === 'application/pdf') {
+        handleFile(file);
+      } else {
+        showToast('请上传 PDF 文件');
+      }
+    });
+
+    // Handle PDF file
+    async function handleFile(file) {
+      if (!file) return;
+
+      state.filename = file.name;
+      showStatus('正在加载 PDF...');
+
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        state.pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        
+        const numPages = state.pdfDoc.numPages;
+        state.pages = [];
+        state.selectedPages = new Set();
+        pagesGrid.innerHTML = '';
+
+        for (let i = 1; i <= numPages; i++) {
+          showStatus(`正在渲染第 ${i}/${numPages} 页...`);
+          const pageData = await renderPage(i);
+          state.pages.push(pageData);
+          state.selectedPages.add(i);
+          renderPageCard(pageData, i);
+        }
+
+        hideStatus();
+        pagesSection.classList.add('visible');
+        outputSection.classList.remove('visible');
+        updateStats();
+
+      } catch (error) {
+        hideStatus();
+        showToast('PDF 加载失败: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    // Render single page
+    async function renderPage(pageNum) {
+      const page = await state.pdfDoc.getPage(pageNum);
+      const viewport = page.getViewport({ scale: 1 });
+
+      // Calculate scale to fit MAX_DIMENSION
+      let scale = 1;
+      if (viewport.width > MAX_DIMENSION || viewport.height > MAX_DIMENSION) {
+        scale = Math.min(MAX_DIMENSION / viewport.width, MAX_DIMENSION / viewport.height);
+      }
+
+      const scaledViewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = scaledViewport.width;
+      canvas.height = scaledViewport.height;
+
+      await page.render({
+        canvasContext: ctx,
+        viewport: scaledViewport
+      }).promise;
+
+      const dataUrl = canvas.toDataURL('image/png');
+      const base64 = dataUrl.replace('data:image/png;base64,', '');
+      const tokens = Math.ceil((canvas.width * canvas.height) / TOKENS_PER_PIXEL);
+
+      return {
+        pageNum,
+        width: canvas.width,
+        height: canvas.height,
+        dataUrl,
+        base64,
+        tokens
+      };
+    }
+
+    // Render page card
+    function renderPageCard(pageData, pageNum) {
+      const card = document.createElement('div');
+      card.className = 'page-card selected';
+      card.dataset.page = pageNum;
+      card.innerHTML = `
+        <div class="page-thumb">
+          <img src="${pageData.dataUrl}" alt="Page ${pageNum}">
+        </div>
+        <div class="page-info">
+          <input type="checkbox" class="page-checkbox" checked data-page="${pageNum}">
+          <span class="page-label">第 ${pageNum} 页</span>
+          <span class="page-tokens">~${pageData.tokens}</span>
+        </div>
+      `;
+
+      const checkbox = card.querySelector('.page-checkbox');
+      checkbox.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          state.selectedPages.add(pageNum);
+          card.classList.add('selected');
+        } else {
+          state.selectedPages.delete(pageNum);
+          card.classList.remove('selected');
+        }
+        updateStats();
+      });
+
+      pagesGrid.appendChild(card);
+    }
+
+    // Update stats
+    function updateStats() {
+      document.getElementById('stat-filename').textContent = state.filename || '-';
+      document.getElementById('stat-total').textContent = state.pages.length;
+      document.getElementById('stat-selected').textContent = state.selectedPages.size;
+
+      let totalTokens = 0;
+      state.selectedPages.forEach(pageNum => {
+        const page = state.pages[pageNum - 1];
+        if (page) totalTokens += page.tokens;
+      });
+      document.getElementById('stat-tokens').textContent = totalTokens.toLocaleString();
+    }
+
+    // Select/Deselect all
+    document.getElementById('btn-select-all').addEventListener('click', () => {
+      document.querySelectorAll('.page-checkbox').forEach(cb => {
+        cb.checked = true;
+        const pageNum = parseInt(cb.dataset.page);
+        state.selectedPages.add(pageNum);
+        cb.closest('.page-card').classList.add('selected');
+      });
+      updateStats();
+    });
+
+    document.getElementById('btn-deselect-all').addEventListener('click', () => {
+      document.querySelectorAll('.page-checkbox').forEach(cb => {
+        cb.checked = false;
+        const pageNum = parseInt(cb.dataset.page);
+        state.selectedPages.delete(pageNum);
+        cb.closest('.page-card').classList.remove('selected');
+      });
+      updateStats();
+    });
+
+    // Convert
+    document.getElementById('btn-convert').addEventListener('click', () => {
+      if (state.selectedPages.size === 0) {
+        showToast('请至少选择一个页面');
+        return;
+      }
+
+      state.convertedImages = [];
+      const sortedPages = Array.from(state.selectedPages).sort((a, b) => a - b);
+      
+      sortedPages.forEach(pageNum => {
+        const page = state.pages[pageNum - 1];
+        if (page) state.convertedImages.push(page);
+      });
+
+      outputSection.classList.add('visible');
+      updateOutput();
+      outputSection.scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // Output format
+    function updateOutput() {
+      if (state.currentFormat === 'json') {
+        const content = state.convertedImages.map(img => ({
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: 'image/png',
+            data: img.base64
+          }
+        }));
+        outputText.textContent = JSON.stringify(content, null, 2);
+      } else {
+        outputText.textContent = state.convertedImages.map((img, i) => 
+          `--- Page ${img.pageNum} (${img.width}x${img.height}, ~${img.tokens} tokens) ---\n${img.base64}`
+        ).join('\n\n');
+      }
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.currentFormat = btn.dataset.format;
+        updateOutput();
+      });
+    });
+
+    // Copy to clipboard
+    document.getElementById('btn-copy').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(outputText.textContent);
+        const copySuccess = document.getElementById('copy-success');
+        copySuccess.classList.add('visible');
+        setTimeout(() => copySuccess.classList.remove('visible'), 2000);
+      } catch (err) {
+        showToast('复制失败，请手动复制');
+      }
+    });
+
+    // Download as PNG
+    document.getElementById('btn-download').addEventListener('click', () => {
+      state.convertedImages.forEach((img, i) => {
+        const link = document.createElement('a');
+        link.download = `${state.filename.replace('.pdf', '')}_page${img.pageNum}.png`;
+        link.href = img.dataUrl;
+        link.click();
+      });
+      showToast(`已下载 ${state.convertedImages.length} 个文件`);
+    });
+
+    // Utilities
+    function showStatus(text) {
+      statusText.textContent = text;
+      statusBar.classList.add('visible');
+    }
+
+    function hideStatus() {
+      statusBar.classList.remove('visible');
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('visible');
+      setTimeout(() => toast.classList.remove('visible'), 3000);
+    }
+  </script>
+</body>
+</html>
