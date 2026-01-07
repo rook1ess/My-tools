@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pinecone Manager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Lato:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-main: #faf9f7;
+            --bg-card: #f5f2eb;
+            --bg-input: #fffefa;
+            --accent-primary: #2d5a47;
+            --accent-secondary: #8b6914;
+            --accent-hover: #3d7a5f;
+            --border-color: #d4cfc4;
+            --text-primary: #3d3831;
+            --text-secondary: #6b6560;
+            --text-muted: #9a948c;
+            --success: #2d5a47;
+            --error: #a63d3d;
+            --warning: #8b6914;
+            --shadow-sm: 0 1px 3px rgba(61, 56, 49, 0.08);
+            --shadow-md: 0 4px 12px rgba(61, 56, 49, 0.1);
+            --shadow-lg: 0 8px 24px rgba(61, 56, 49, 0.12);
+        }
+
+        body {
+            font-family: 'Lato', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+        }
+
+        /* Layout */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border-color);
+            padding: 24px 0;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .logo {
+            padding: 0 24px 24px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 16px;
+        }
+
+        .logo h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--accent-primary);
+            letter-spacing: -0.5px;
+        }
+
+        .logo p {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .nav-section {
+            padding: 8px 12px;
+        }
+
+        .nav-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            padding: 8px 12px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: 'Playfair Display', serif;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .nav-item:hover {
+            background: rgba(45, 90, 71, 0.08);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .nav-item svg {
+            width: 18px;
+            height: 18px;
+            opacity: 0.8;
+        }
+
+        .connection-status {
+            margin-top: auto;
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.connected {
+            background: var(--success);
+            box-shadow: 0 0 8px rgba(45, 90, 71, 0.4);
+        }
+
+        .status-dot.error {
+            background: var(--error);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 240px;
+            padding: 32px 40px;
+            max-width: 1200px;
+        }
+
+        .page-header {
+            margin-bottom: 28px;
+        }
+
+        .page-header h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px 14px;
+            font-family: inherit;
+            font-size: 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            transition: all 0.15s ease;
+            box-shadow: inset 0 1px 2px rgba(61, 56, 49, 0.04);
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(45, 90, 71, 0.1);
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: var(--text-muted);
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--accent-primary);
+            border: 1px solid var(--accent-primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(45, 90, 71, 0.08);
+        }
+
+        .btn-tertiary {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-tertiary:hover {
+            background: var(--bg-input);
+            color: var(--text-secondary);
+        }
+
+        .btn-danger {
+            background: var(--error);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #8a3232;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        /* Results */
+        .results-container {
+            margin-top: 20px;
+        }
+
+        .result-item {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.15s ease;
+        }
+
+        .result-item:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .result-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--accent-primary);
+        }
+
+        .result-score {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 3px 10px;
+            background: rgba(45, 90, 71, 0.1);
+            color: var(--accent-primary);
+            border-radius: 12px;
+        }
+
+        .result-content {
+            font-size: 14px;
+            color: var(--text-primary);
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .result-metadata {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+            background: rgba(0,0,0,0.03);
+            padding: 10px 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            box-shadow: var(--shadow-lg);
+            animation: slideIn 0.3s ease;
+            max-width: 360px;
+        }
+
+        .toast.success {
+            background: var(--success);
+            color: white;
+        }
+
+        .toast.error {
+            background: var(--error);
+            color: white;
+        }
+
+        .toast.info {
+            background: var(--accent-secondary);
+            color: white;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 18px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--accent-primary);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0;
+        }
+
+        .tab {
+            padding: 10px 18px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s ease;
+            margin-bottom: -1px;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+            font-weight: 500;
+        }
+
+        /* Page visibility */
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* Helper text */
+        .helper-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 16px;
+            opacity: 0.4;
+        }
+
+        /* JSON Editor */
+        .json-editor {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        /* Record count badge */
+        .record-count {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            padding: 2px 8px;
+            background: rgba(45, 90, 71, 0.1);
+            color: var(--accent-primary);
+            border-radius: 10px;
+        }
+
+        /* Checkbox styling */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent-primary);
+        }
+
+        /* Namespace list */
+        .namespace-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .namespace-tag {
+            font-size: 13px;
+            padding: 6px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .namespace-tag .count {
+            font-size: 11px;
+            background: var(--accent-primary);
+            color: white;
+            padding: 1px 6px;
+            border-radius: 10px;
+        }
+
+        /* Vector preview */
+        .vector-preview {
+            display: flex;
+            gap: 2px;
+            height: 24px;
+            align-items: flex-end;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .vector-bar {
+            width: 3px;
+            background: var(--accent-primary);
+            border-radius: 1px;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="logo">
+                <h1>Pinecone Manager</h1>
+                <p>Vector Database Tool</p>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-section-title">操作</div>
+                <div class="nav-item active" data-page="connect">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    连接
+                </div>
+                <div class="nav-item" data-page="upsert">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    写入
+                </div>
+                <div class="nav-item" data-page="query">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    查询
+                </div>
+                <div class="nav-item" data-page="manage">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                    管理
+                </div>
+            </div>
+
+            <div class="connection-status">
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">未连接</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Connect Page -->
+            <div class="page active" id="page-connect">
+                <div class="page-header">
+                    <h2>连接设置</h2>
+                    <p>配置 API 密钥和索引连接</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">API 配置</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Pinecone API Key</label>
+                        <input type="password" id="pineconeApiKey" placeholder="pc-xxxxxxxx...">
+                        <p class="helper-text">在 Pinecone 控制台的 API Keys 页面获取</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>OpenAI API Key</label>
+                        <input type="password" id="openaiApiKey" placeholder="sk-xxxxxxxx...">
+                        <p class="helper-text">用于生成文本嵌入向量</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Pinecone Index Host</label>
+                        <input type="text" id="pineconeHost" placeholder="https://your-index-xxx.svc.xxx.pinecone.io">
+                        <p class="helper-text">索引详情页面中的完整 Host URL</p>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>嵌入模型</label>
+                            <select id="embeddingModel">
+                                <option value="text-embedding-3-small">text-embedding-3-small (1536维)</option>
+                                <option value="text-embedding-3-large">text-embedding-3-large (3072维)</option>
+                                <option value="text-embedding-ada-002">text-embedding-ada-002 (1536维)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>默认命名空间</label>
+                            <input type="text" id="defaultNamespace" placeholder="留空使用默认">
+                        </div>
+                    </div>
+
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="saveKeys" checked>
+                        <label for="saveKeys" style="margin: 0;">保存密钥到浏览器 (localStorage)</label>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="saveAndConnect()">保存并连接</button>
+                        <button class="btn btn-secondary" onclick="testConnection()">测试连接</button>
+                        <button class="btn btn-secondary" onclick="clearSavedKeys()">清除已保存</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upsert Page -->
+            <div class="page" id="page-upsert">
+                <div class="page-header">
+                    <h2>写入记录</h2>
+                    <p>向索引中添加或更新向量记录</p>
+                </div>
+
+                <div class="tabs">
+                    <div class="tab active" data-tab="single">单条写入</div>
+                    <div class="tab" data-tab="batch">批量上传</div>
+                </div>
+
+                <!-- Single Record -->
+                <div class="card" id="tab-single">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>记录 ID</label>
+                            <input type="text" id="upsertId" placeholder="例如: doc_001">
+                        </div>
+                        <div class="form-group">
+                            <label>命名空间</label>
+                            <input type="text" id="upsertNamespace" placeholder="留空使用默认">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>查询键值</label>
+                        <textarea id="upsertText" placeholder="输入用于语义搜索的描述文本，如：Nginx反向代理配置"></textarea>
+                        <p class="helper-text">这段文本将被转换为向量，用于后续的语义搜索匹配</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>元数据 (JSON)</label>
+                        <textarea id="upsertMetadata" class="json-editor" placeholder='{"code": "server { listen 80; ... }", "language": "nginx", "tags": ["proxy", "web"]}'></textarea>
+                        <p class="helper-text">可选：存储实际内容（如代码）和其他附加信息，查询时会返回</p>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="upsertSingle()">写入记录</button>
+                        <button class="btn btn-tertiary" onclick="clearUpsertSingle()">清除内容</button>
+                    </div>
+
+                    <div id="upsertResult"></div>
+                </div>
+
+                <!-- Batch Upload -->
+                <div class="card" id="tab-batch" style="display: none;">
+                    <div class="form-group">
+                        <label>命名空间</label>
+                        <input type="text" id="batchNamespace" placeholder="留空使用默认">
+                    </div>
+
+                    <div class="form-group">
+                        <label>记录列表 (JSON 数组)</label>
+                        <textarea id="batchRecords" class="json-editor" style="min-height: 200px;" placeholder='[
+  {"id": "code_001", "text": "Nginx反向代理配置", "metadata": {"code": "server {...}", "lang": "nginx"}},
+  {"id": "code_002", "text": "Python异步HTTP请求", "metadata": {"code": "async def...", "lang": "python"}}
+]'></textarea>
+                        <p class="helper-text">数组格式：id（记录ID）、text（查询键值）、metadata（元数据）</p>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="upsertBatch()">批量写入</button>
+                        <button class="btn btn-tertiary" onclick="clearUpsertBatch()">清除内容</button>
+                    </div>
+
+                    <div id="batchResult"></div>
+                </div>
+            </div>
+
+            <!-- Query Page -->
+            <div class="page" id="page-query">
+                <div class="page-header">
+                    <h2>查询向量</h2>
+                    <p>通过语义搜索或 ID 查询索引</p>
+                </div>
+
+                <div class="tabs">
+                    <div class="tab active" data-tab="semantic">语义搜索</div>
+                    <div class="tab" data-tab="fetch">按 ID 查询</div>
+                </div>
+
+                <!-- Semantic Search -->
+                <div class="card" id="tab-semantic">
+                    <div class="form-group">
+                        <label>搜索内容</label>
+                        <textarea id="queryText" style="min-height: 80px;" placeholder="输入要搜索的内容，如：反向代理、异步请求..."></textarea>
+                        <p class="helper-text">将与已存储的「查询键值」进行语义匹配</p>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>命名空间</label>
+                            <input type="text" id="queryNamespace" placeholder="留空使用默认">
+                        </div>
+                        <div class="form-group">
+                            <label>返回数量 (Top K)</label>
+                            <input type="number" id="queryTopK" value="10" min="1" max="100">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>元数据过滤 (JSON, 可选)</label>
+                        <textarea id="queryFilter" class="json-editor" style="min-height: 60px;" placeholder='{"category": {"$eq": "article"}}'></textarea>
+                        <p class="helper-text">使用 Pinecone 过滤语法筛选结果</p>
+                    </div>
+
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="includeMetadata" checked>
+                        <label for="includeMetadata" style="margin: 0;">在结果中包含元数据</label>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="queryVectors()">搜索</button>
+                        <button class="btn btn-tertiary" onclick="clearQuerySemantic()">清除内容</button>
+                    </div>
+
+                    <div id="queryResults" class="results-container"></div>
+                </div>
+
+                <!-- Fetch by ID -->
+                <div class="card" id="tab-fetch" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>向量 ID (逗号分隔)</label>
+                            <input type="text" id="fetchIds" placeholder="doc_001, doc_002, doc_003">
+                        </div>
+                        <div class="form-group">
+                            <label>命名空间</label>
+                            <input type="text" id="fetchNamespace" placeholder="留空使用默认">
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="fetchByIds()">查询记录</button>
+                        <button class="btn btn-tertiary" onclick="clearQueryFetch()">清除内容</button>
+                    </div>
+
+                    <div id="fetchResults" class="results-container"></div>
+                </div>
+            </div>
+
+            <!-- Manage Page -->
+            <div class="page" id="page-manage">
+                <div class="page-header">
+                    <h2>管理索引</h2>
+                    <p>查看统计信息和删除记录</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">索引统计</span>
+                        <button class="btn btn-secondary" onclick="refreshStats()">刷新</button>
+                    </div>
+
+                    <div id="statsContainer">
+                        <div class="empty-state">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            <p>请先连接以查看索引统计</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">删除记录</span>
+                    </div>
+
+                    <div class="tabs">
+                        <div class="tab active" data-tab="delete-id">按 ID 删除</div>
+                        <div class="tab" data-tab="delete-filter">按过滤条件</div>
+                        <div class="tab" data-tab="delete-namespace">删除命名空间</div>
+                    </div>
+
+                    <!-- Delete by ID -->
+                    <div id="tab-delete-id">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>向量 ID (逗号分隔)</label>
+                                <input type="text" id="deleteIds" placeholder="doc_001, doc_002">
+                            </div>
+                            <div class="form-group">
+                                <label>命名空间</label>
+                                <input type="text" id="deleteNamespace" placeholder="留空使用默认">
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-danger" onclick="deleteByIds()">删除记录</button>
+                        </div>
+                    </div>
+
+                    <!-- Delete by Filter -->
+                    <div id="tab-delete-filter" style="display: none;">
+                        <div class="form-group">
+                            <label>元数据过滤 (JSON)</label>
+                            <textarea id="deleteFilter" class="json-editor" placeholder='{"category": {"$eq": "outdated"}}'></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>命名空间</label>
+                            <input type="text" id="deleteFilterNamespace" placeholder="留空使用默认">
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-danger" onclick="deleteByFilter()">按条件删除</button>
+                        </div>
+                    </div>
+
+                    <!-- Delete Namespace -->
+                    <div id="tab-delete-namespace" style="display: none;">
+                        <div class="form-group">
+                            <label>要删除的命名空间</label>
+                            <input type="text" id="deleteNamespaceName" placeholder="输入命名空间名称">
+                            <p class="helper-text">警告：这将删除该命名空间中的所有记录</p>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-danger" onclick="deleteNamespace()">删除整个命名空间</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // Global state
+        let config = {
+            pineconeApiKey: '',
+            openaiApiKey: '',
+            pineconeHost: '',
+            embeddingModel: 'text-embedding-3-small',
+            defaultNamespace: ''
+        };
+
+        let isConnected = false;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSavedConfig();
+            setupNavigation();
+            setupTabs();
+        });
+
+        // Load saved configuration from localStorage
+        function loadSavedConfig() {
+            const saved = localStorage.getItem('pinecone-manager-config');
+            if (saved) {
+                try {
+                    config = JSON.parse(saved);
+                    document.getElementById('pineconeApiKey').value = config.pineconeApiKey || '';
+                    document.getElementById('openaiApiKey').value = config.openaiApiKey || '';
+                    document.getElementById('pineconeHost').value = config.pineconeHost || '';
+                    document.getElementById('embeddingModel').value = config.embeddingModel || 'text-embedding-3-small';
+                    document.getElementById('defaultNamespace').value = config.defaultNamespace || '';
+                    
+                    if (config.pineconeApiKey && config.pineconeHost) {
+                        testConnection();
+                    }
+                } catch (e) {
+                    console.error('Failed to load config:', e);
+                }
+            }
+        }
+
+        // Save configuration
+        function saveConfig() {
+            config.pineconeApiKey = document.getElementById('pineconeApiKey').value.trim();
+            config.openaiApiKey = document.getElementById('openaiApiKey').value.trim();
+            config.pineconeHost = document.getElementById('pineconeHost').value.trim();
+            config.embeddingModel = document.getElementById('embeddingModel').value;
+            config.defaultNamespace = document.getElementById('defaultNamespace').value.trim();
+
+            if (document.getElementById('saveKeys').checked) {
+                localStorage.setItem('pinecone-manager-config', JSON.stringify(config));
+            }
+        }
+
+        // Save and connect
+        async function saveAndConnect() {
+            saveConfig();
+            await testConnection();
+        }
+
+        // Test connection
+        async function testConnection() {
+            if (!config.pineconeApiKey || !config.pineconeHost) {
+                showToast('请输入 API Key 和 Host URL', 'error');
+                return;
+            }
+
+            updateStatus('connecting');
+            
+            try {
+                const response = await fetch(`${config.pineconeHost}/describe_index_stats`, {
+                    method: 'POST',
+                    headers: {
+                        'Api-Key': config.pineconeApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+
+                if (response.ok) {
+                    isConnected = true;
+                    updateStatus('connected');
+                    showToast('连接成功', 'success');
+                    refreshStats();
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                isConnected = false;
+                updateStatus('error');
+                showToast(`连接失败: ${error.message}`, 'error');
+            }
+        }
+
+        // Update connection status
+        function updateStatus(status) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            
+            dot.className = 'status-dot';
+            
+            switch(status) {
+                case 'connected':
+                    dot.classList.add('connected');
+                    text.textContent = '已连接';
+                    break;
+                case 'connecting':
+                    text.textContent = '连接中...';
+                    break;
+                case 'error':
+                    dot.classList.add('error');
+                    text.textContent = '连接失败';
+                    break;
+                default:
+                    text.textContent = '未连接';
+            }
+        }
+
+        // Clear saved keys
+        function clearSavedKeys() {
+            localStorage.removeItem('pinecone-manager-config');
+            document.getElementById('pineconeApiKey').value = '';
+            document.getElementById('openaiApiKey').value = '';
+            document.getElementById('pineconeHost').value = '';
+            config = { embeddingModel: 'text-embedding-3-small', defaultNamespace: '' };
+            isConnected = false;
+            updateStatus('disconnected');
+            showToast('已清除保存的密钥', 'info');
+        }
+
+        // Navigation
+        function setupNavigation() {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const page = item.dataset.page;
+                    
+                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                    
+                    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                    document.getElementById(`page-${page}`).classList.add('active');
+                });
+            });
+        }
+
+        // Tabs
+        function setupTabs() {
+            document.querySelectorAll('.tabs').forEach(tabContainer => {
+                tabContainer.querySelectorAll('.tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        const tabName = tab.dataset.tab;
+                        const parent = tab.closest('.card') || tab.closest('.page');
+                        
+                        tabContainer.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        
+                        // Find all tab content in the same container
+                        const allTabs = parent.querySelectorAll('[id^="tab-"]');
+                        allTabs.forEach(content => {
+                            if (content.id === `tab-${tabName}`) {
+                                content.style.display = 'block';
+                            } else if (content.classList.contains('card') || content.id.startsWith('tab-')) {
+                                content.style.display = 'none';
+                            }
+                        });
+                    });
+                });
+            });
+        }
+
+        // Generate embedding using OpenAI
+        async function generateEmbedding(text) {
+            if (!config.openaiApiKey) {
+                throw new Error('未配置 OpenAI API Key');
+            }
+
+            const response = await fetch('https://api.openai.com/v1/embeddings', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${config.openaiApiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: config.embeddingModel,
+                    input: text
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error?.message || '生成嵌入失败');
+            }
+
+            const data = await response.json();
+            return data.data[0].embedding;
+        }
+
+        // Upsert single record
+        async function upsertSingle() {
+            const id = document.getElementById('upsertId').value.trim();
+            const text = document.getElementById('upsertText').value.trim();
+            const namespace = document.getElementById('upsertNamespace').value.trim() || config.defaultNamespace;
+            const metadataStr = document.getElementById('upsertMetadata').value.trim();
+
+            if (!id || !text) {
+                showToast('请输入 ID 和文本内容', 'error');
+                return;
+            }
+
+            let metadata = {};
+            if (metadataStr) {
+                try {
+                    metadata = JSON.parse(metadataStr);
+                } catch (e) {
+                    showToast('元数据 JSON 格式无效', 'error');
+                    return;
+                }
+            }
+
+            // Store original text in metadata
+            metadata._text = text;
+
+            const resultDiv = document.getElementById('upsertResult');
+            resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div>正在生成嵌入向量...</div>';
+
+            try {
+                const embedding = await generateEmbedding(text);
+                
+                resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div>正在写入 Pinecone...</div>';
+
+                const body = {
+                    vectors: [{
+                        id: id,
+                        values: embedding,
+                        metadata: metadata
+                    }]
+                };
+
+                if (namespace) {
+                    body.namespace = namespace;
+                }
+
+                const response = await fetch(`${config.pineconeHost}/vectors/upsert`, {
+                    method: 'POST',
+                    headers: {
+                        'Api-Key': config.pineconeApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                resultDiv.innerHTML = `
+                    <div class="result-item" style="margin-top: 16px; border-color: var(--success);">
+                        <div class="result-header">
+                            <span class="result-id">${id}</span>
+                            <span class="result-score" style="background: rgba(45, 90, 71, 0.2);">已写入</span>
+                        </div>
+                        <div class="result-content">向量维度: ${embedding.length}</div>
+                        <div class="vector-preview">${renderVectorPreview(embedding)}</div>
+                    </div>
+                `;
+                showToast('记录写入成功', 'success');
+            } catch (error) {
+                resultDiv.innerHTML = '';
+                showToast(`写入失败: ${error.message}`, 'error');
+            }
+        }
+
+        // Upsert batch
+        async function upsertBatch() {
+            const namespace = document.getElementById('batchNamespace').value.trim() || config.defaultNamespace;
+            const recordsStr = document.getElementById('batchRecords').value.trim();
+
+            if (!recordsStr) {
+                showToast('请输入记录 JSON', 'error');
+                return;
+            }
+
+            let records;
+            try {
+                records = JSON.parse(recordsStr);
+                if (!Array.isArray(records)) {
+                    throw new Error('必须是数组格式');
+                }
+            } catch (e) {
+                showToast('JSON 格式无效: ' + e.message, 'error');
+                return;
+            }
+
+            const resultDiv = document.getElementById('batchResult');
+            resultDiv.innerHTML = `<div class="loading"><div class="spinner"></div>正在处理 ${records.length} 条记录...</div>`;
+
+            try {
+                const vectors = [];
+                for (let i = 0; i < records.length; i++) {
+                    const record = records[i];
+                    resultDiv.innerHTML = `<div class="loading"><div class="spinner"></div>正在生成嵌入 ${i + 1}/${records.length}...</div>`;
+                    
+                    const embedding = await generateEmbedding(record.text);
+                    const metadata = record.metadata || {};
+                    metadata._text = record.text;
+                    
+                    vectors.push({
+                        id: record.id,
+                        values: embedding,
+                        metadata: metadata
+                    });
+                }
+
+                resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div>正在写入 Pinecone...</div>';
+
+                const body = { vectors };
+                if (namespace) {
+                    body.namespace = namespace;
+                }
+
+                const response = await fetch(`${config.pineconeHost}/vectors/upsert`, {
+                    method: 'POST',
+                    headers: {
+                        'Api-Key': config.pineconeApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                resultDiv.innerHTML = `
+                    <div class="result-item" style="margin-top: 16px; border-color: var(--success);">
+                        <div class="result-content">成功写入 ${vectors.length} 条记录</div>
+                    </div>
+                `;
+                showToast(`已写入 ${vectors.length} 条记录`, 'success');
+            } catch (error) {
+                resultDiv.innerHTML = '';
+                showToast(`批量写入失败: ${error.message}`, 'error');
+            }
+        }
+
+        // Query vectors
+        async function queryVectors() {
+            const queryText = document.getElementById('queryText').value.trim();
+            const namespace = document.getElementById('queryNamespace').value.trim() || config.defaultNamespace;
+            const topK = parseInt(document.getElementById('queryTopK').value) || 10;
+            const filterStr = document.getElementById('queryFilter').value.trim();
+            const includeMetadata = document.getElementById('includeMetadata').checked;
+
+            if (!queryText) {
+                showToast('请输入搜索内容', 'error');
+                return;
+            }
+
+            let filter = null;
+            if (filterStr) {
+                try {
+                    filter = JSON.parse(filterStr);
+                } catch (e) {
+                    showToast('过滤条件 JSON 格式无效', 'error');
+                    return;
+                }
+            }
+
+            const resultDiv = document.getElementById('queryResults');
+            resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div>正在生成查询向量...</div>';
+
+            try {
+                const embedding = await generateEmbedding(queryText);
+                
+                resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div>正在搜索...</div>';
+
+                const body = {
+                    vector: embedding,
+                    topK: topK,
+                    includeMetadata: includeMetadata
+                };
+
+                if (namespace) {
+                    body.namespace = namespace;
+                }
+                if (filter) {
+                    body.filter = filter;
+                }
+
+                const response = await fetch(`${config.pineconeHost}/query`, {
+                    method: 'POST',
+                    headers: {
+                        'Api-Key': config.pineconeApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                renderQueryResults(result.matches || [], resultDiv);
+            } catch (error) {
+                resultDiv.innerHTML = '';
+                showToast(`查询失败: ${error.message}`, 'error');
+            }
+        }
+
+        // Render query results
+        function renderQueryResults(matches, container) {
+            if (matches.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>未找到结果</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = matches.map(match => `
+                <div class="result-item">
+                    <div class="result-header">
+                        <span class="result-id">${match.id}</span>
+                        <span class="result-score">相似度: ${(match.score * 100).toFixed(2)}%</span>
+                    </div>
+                    ${match.metadata?._text ? `<div class="result-content">${escapeHtml(match.metadata._text)}</div>` : ''}
+                    ${match.metadata ? `<div class="result-metadata">${JSON.stringify(match.metadata, null, 2)}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Fetch by IDs
+        async function fetchByIds() {
+            const idsStr = document.getElementById('fetchIds').value.trim();
+            const namespace = document.getElementById('fetchNamespace').value.trim() || config.defaultNamespace;
+
+            if (!idsStr) {
+                showToast('请输入向量 ID', 'error');
+                return;
+            }
+
+            const ids = idsStr.split(',').map(id => id.trim()).filter(id => id);
+
+            const resultDiv = document.getElementById('fetchResults');
+            resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div>正在查询...</div>';
+
+            try {
+                const body = { ids };
+                if (namespace) {
+                    body.namespace = namespace;
+                }
+
+                const response = await fetch(`${config.pineconeHost}/vectors/fetch`, {
+                    method: 'POST',
+                    headers: {
+                        'Api-Key': config.pineconeApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                renderFetchResults(result.vectors || {}, resultDiv);
+            } catch (error) {
+                resultDiv.innerHTML = '';
+                showToast(`查询失败: ${error.message}`, 'error');
+            }
+        }
+
+        // Render fetch results
+        function renderFetchResults(vectors, container) {
+            const entries = Object.entries(vectors);
+            
+            if (entries.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>未找到记录</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = entries.map(([id, data]) => `
+                <div class="result-item">
+                    <div class="result-header">
+                        <span class="result-id">${id}</span>
+                        <span class="result-score">${data.values?.length || 0} 维</span>
+                    </div>
+                    ${data.metadata?._text ? `<div class="result-content">${escapeHtml(data.metadata._text)}</div>` : ''}
+                    ${data.metadata ? `<div class="result-metadata">${JSON.stringify(data.metadata, null, 2)}</div>` : ''}
+                    <div class="vector-preview">${renderVectorPreview(data.values || [])}</div>
+                </div>
+            `).join('');
+        }
+
+        // Refresh stats
+        async function refreshStats() {
+            if (!isConnected) {
+                showToast('请先连接', 'error');
+                return;
+            }
+
+            const container = document.getElementById('statsContainer');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div>正在加载统计信息...</div>';
+
+            try {
+                const response = await fetch(`${config.pineconeHost}/describe_index_stats`, {
+                    method: 'POST',
+                    headers: {
+                        'Api-Key': config.pineconeApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const stats = await response.json();
+                renderStats(stats, container);
+            } catch (error) {
+                container.innerHTML = `<div class="empty-state"><p>加载统计失败: ${error.message}</p></div>`;
+            }
+        }
+
+        // Render stats
+        function renderStats(stats, container) {
+            const namespaces = stats.namespaces || {};
+            const namespaceEntries = Object.entries(namespaces);
+
+            container.innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${stats.totalVectorCount || 0}</div>
+                        <div class="stat-label">向量总数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${stats.dimension || '-'}</div>
+                        <div class="stat-label">向量维度</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${namespaceEntries.length || 1}</div>
+                        <div class="stat-label">命名空间</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${((stats.indexFullness || 0) * 100).toFixed(1)}%</div>
+                        <div class="stat-label">索引使用率</div>
+                    </div>
+                </div>
+                
+                ${namespaceEntries.length > 0 ? `
+                    <div style="margin-top: 20px;">
+                        <label>命名空间列表</label>
+                        <div class="namespace-list">
+                            ${namespaceEntries.map(([name, data]) => `
+                                <div class="namespace-tag">
+                                    ${name || '(默认)'}
+                                    <span class="count">${data.vectorCount || 0}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        // Delete by IDs
+        async function deleteByIds() {
+            const idsStr = document.getElementById('deleteIds').value.trim();
+            const namespace = document.getElementById('deleteNamespace').value.trim() || config.defaultNamespace;
+
+            if (!idsStr) {
+                showToast('请输入向量 ID', 'error');
+                return;
+            }
+
+            const ids = idsStr.split(',').map(id => id.trim()).filter(id => id);
+
+            if (!confirm(`确定要删除 ${ids.length} 条记录吗？`)) {
+                return;
+            }
+
+            try {
+                const body = { ids };
+                if (namespace) {
+                    body.namespace = namespace;
+                }
+
+                const response = await fetch(`${config.pineconeHost}/vectors/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Api-Key': config.pineconeApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                showToast(`已删除 ${ids.length} 条记录`, 'success');
+                refreshStats();
+            } catch (error) {
+                showToast(`删除失败: ${error.message}`, 'error');
+            }
+        }
+
+        // Delete by filter
+        async function deleteByFilter() {
+            const filterStr = document.getElementById('deleteFilter').value.trim();
+            const namespace = document.getElementById('deleteFilterNamespace').value.trim() || config.defaultNamespace;
+
+            if (!filterStr) {
+                showToast('请输入过滤条件', 'error');
+                return;
+            }
+
+            let filter;
+            try {
+                filter = JSON.parse(filterStr);
+            } catch (e) {
+                showToast('过滤条件 JSON 格式无效', 'error');
+                return;
+            }
+
+            if (!confirm('确定要删除所有匹配此条件的记录吗？')) {
+                return;
+            }
+
+            try {
+                const body = { filter };
+                if (namespace) {
+                    body.namespace = namespace;
+                }
+
+                const response = await fetch(`${config.pineconeHost}/vectors/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Api-Key': config.pineconeApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                showToast('记录已删除', 'success');
+                refreshStats();
+            } catch (error) {
+                showToast(`删除失败: ${error.message}`, 'error');
+            }
+        }
+
+        // Delete namespace
+        async function deleteNamespace() {
+            const namespace = document.getElementById('deleteNamespaceName').value.trim();
+
+            if (!namespace) {
+                showToast('请输入命名空间名称', 'error');
+                return;
+            }
+
+            if (!confirm(`确定要删除命名空间 "${namespace}" 中的所有记录吗？此操作不可撤销。`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${config.pineconeHost}/vectors/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Api-Key': config.pineconeApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        deleteAll: true,
+                        namespace: namespace
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                showToast(`命名空间 "${namespace}" 已删除`, 'success');
+                refreshStats();
+            } catch (error) {
+                showToast(`删除失败: ${error.message}`, 'error');
+            }
+        }
+
+        // Render vector preview bars
+        function renderVectorPreview(values) {
+            if (!values || values.length === 0) return '';
+            
+            // Sample 50 values evenly distributed
+            const sampleSize = 50;
+            const step = Math.floor(values.length / sampleSize);
+            const samples = [];
+            
+            for (let i = 0; i < sampleSize; i++) {
+                samples.push(values[i * step] || 0);
+            }
+            
+            const max = Math.max(...samples.map(Math.abs));
+            
+            return samples.map(v => {
+                const height = Math.abs(v / max) * 20 + 4;
+                return `<div class="vector-bar" style="height: ${height}px;"></div>`;
+            }).join('');
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Clear functions
+        function clearUpsertSingle() {
+            document.getElementById('upsertId').value = '';
+            document.getElementById('upsertNamespace').value = '';
+            document.getElementById('upsertText').value = '';
+            document.getElementById('upsertMetadata').value = '';
+            document.getElementById('upsertResult').innerHTML = '';
+        }
+
+        function clearUpsertBatch() {
+            document.getElementById('batchNamespace').value = '';
+            document.getElementById('batchRecords').value = '';
+            document.getElementById('batchResult').innerHTML = '';
+        }
+
+        function clearQuerySemantic() {
+            document.getElementById('queryText').value = '';
+            document.getElementById('queryNamespace').value = '';
+            document.getElementById('queryFilter').value = '';
+            document.getElementById('queryResults').innerHTML = '';
+        }
+
+        function clearQueryFetch() {
+            document.getElementById('fetchIds').value = '';
+            document.getElementById('fetchNamespace').value = '';
+            document.getElementById('fetchResults').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
